@@ -102,7 +102,7 @@ def test_subnet_rejects_bad_input(ip, mask):
     ("::", "unspecified"), ("::1", "loopback"), ("fe80::1234", "link-local"),
     ("febf::1", "link-local"), ("fc00::1", "unique-local"),
     ("fd12::1", "unique-local"), ("ff02::1", "multicast"),
-    ("2001:db8::1", "global"),
+    ("2001:db8::1", "documentation"), ("::ffff:192.0.2.1", "ipv4-mapped"),
 ])
 def test_classify_ipv6(address, category):
     assert classify_ipv6(address)["category"] == category
@@ -143,10 +143,27 @@ def test_ip_range_crosscheck_and_cap():
         ip_range("0.0.0.0", "0.0.4.0")
 
 
-@pytest.mark.parametrize("address", ["192.0.2.1", "2001:db8::1"])
+@pytest.mark.parametrize("address", [
+    "192.0.2.1", "2001:db8::1", "1:2:3:4:5:6:1.2.3.4",
+    "ff:1:abcd:1:ff:0:1.2.3.4",
+])
 def test_address_formats_crosscheck(address):
     expected = int(ipaddress.ip_address(address))
     result = address_formats(address)
     assert result["integer"] == expected
     assert int(result["hex"], 16) == expected
     assert int(result["binary"].replace(".", ""), 2) == expected
+
+
+@pytest.mark.parametrize("address,category", [
+    ("1:2:3:4:5:6:1.2.3.4", "global"),
+    ("ff:1:abcd:1:ff:0:1.2.3.4", "global"),
+])
+def test_classify_ipv6_full_form_ipv4_tail(address, category):
+    assert classify_ipv6(address)["category"] == category
+    ipaddress.IPv6Address(address)
+
+
+def test_split_subnet_rejects_more_than_1024():
+    with pytest.raises(ValueError, match="cannot exceed 1024"):
+        split_subnet("10.0.0.0/8", 2048)

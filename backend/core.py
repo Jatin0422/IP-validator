@@ -116,10 +116,13 @@ def _ipv6_int(s):
         v4 = _ipv4_int(tail)
         s = s[: -(len(tail))]
         s = s if s.endswith("::") else s[:-1]
-        groups = s.split("::")
-        left = groups[0].split(":") if groups[0] else []
-        right = groups[1].split(":") if groups[1] else []
-        words = [int(g, 16) for g in left] + [0] * (6 - len(left) - len(right)) + [int(g, 16) for g in right]
+        if "::" in s:
+            left_text, right_text = s.split("::")
+            left = left_text.split(":") if left_text else []
+            right = right_text.split(":") if right_text else []
+            words = [int(g, 16) for g in left] + [0] * (6 - len(left) - len(right)) + [int(g, 16) for g in right]
+        else:
+            words = [int(group, 16) for group in s.split(":")]
         words += [(v4 >> 16) & 0xFFFF, v4 & 0xFFFF]
     else:
         if "::" in s:
@@ -137,7 +140,11 @@ def _ipv6_int(s):
 
 def classify_ipv6(s):
     value = _ipv6_int(s)
-    if value == 1:
+    if value >> 32 == 0xFFFF:
+        category = "ipv4-mapped"
+    elif value >> 96 == 0x20010DB8:
+        category = "documentation"
+    elif value == 1:
         category = "loopback"
     elif value == 0:
         category = "unspecified"
@@ -211,6 +218,8 @@ def same_network(ip1, ip2, mask):
 def split_subnet(network, n):
     if not isinstance(n, int) or isinstance(n, bool) or n < 1 or n & (n - 1):
         raise ValueError("n must be a positive power of 2")
+    if n > 1024:
+        raise ValueError("n cannot exceed 1024 subnets")
     if "/" not in network:
         raise ValueError("network must include a prefix, for example 192.168.1.0/24")
     address, prefix_text = network.rsplit("/", 1)
