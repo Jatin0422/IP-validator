@@ -1,0 +1,24 @@
+* { box-sizing: border-box; }
+body { margin: 0; background: #f3f6fa; color: #182434; font: 15px/1.5 system-ui, sans-serif; }
+.shell { max-width: 760px; margin: 56px auto; padding: 0 22px; }
+header { display: flex; align-items: center; gap: 14px; margin-bottom: 30px; }
+.mark { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 13px; background: #1769aa; color: white; font-weight: 800; }
+h1, h2, h3, p { margin-top: 0; } h1 { margin-bottom: 1px; font-size: 26px; } header p { margin: 0; color: #718095; }
+nav { display: flex; gap: 8px; border-bottom: 1px solid #dce3eb; }
+nav button { padding: 12px 16px; border: 0; background: transparent; color: #67768a; cursor: pointer; font: inherit; }
+nav button.active { color: #1769aa; border-bottom: 2px solid #1769aa; font-weight: 650; }
+.panel { padding: 24px; background: white; border: 1px solid #e2e8ef; border-radius: 12px; box-shadow: 0 8px 24px #1c35500a; }
+h2 { margin-bottom: 20px; font-size: 19px; }
+form { display: flex; flex-wrap: wrap; align-items: end; gap: 14px; }
+label { display: grid; flex: 1 1 230px; gap: 6px; color: #526175; font-size: 13px; font-weight: 600; }
+input { width: 100%; padding: 11px 12px; border: 1px solid #cbd5e1; border-radius: 7px; color: #182434; font: 15px ui-monospace, monospace; outline-color: #1769aa; }
+button.submit { padding: 11px 16px; border: 0; border-radius: 7px; background: #1769aa; color: white; font: inherit; font-weight: 650; cursor: pointer; }
+button:disabled { opacity: .65; cursor: wait; }
+.error { margin: 18px 0 0; color: #bd2c2c; }
+.results { margin-top: 24px; } h3 { font-size: 16px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 9px 10px; border-top: 1px solid #e8edf2; text-align: left; overflow-wrap: anywhere; }
+th { width: 34%; color: #64748b; font-weight: 600; text-transform: capitalize; }
+td { font-family: ui-monospace, monospace; }
+footer { margin-top: 20px; color: #8995a5; font-size: 12px; }
+@media (max-width: 540px) { .shell { margin: 28px auto; } .panel { padding: 18px; } button.submit { width: 100%; } }
