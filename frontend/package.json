@@ -4,6 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": { "dev": "vite" },
-  "dependencies": { "@vitejs/plugin-react": "latest", "vite": "latest", "react": "latest", "react-dom": "latest" },
+  "dependencies": { "@fontsource/ibm-plex-mono": "latest", "@fontsource/ibm-plex-sans": "latest", "@vitejs/plugin-react": "latest", "vite": "latest", "react": "latest", "react-dom": "latest" },
   "devDependencies": {}
 }
