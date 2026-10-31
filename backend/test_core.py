@@ -3,9 +3,13 @@ import ipaddress
 import pytest
 
 try:
-    from .core import classify_ipv4, subnet_info, validate_ipv4, validate_ipv6
+    from .core import (address_formats, classify_ipv4, classify_ipv6, ip_range,
+                       same_network, split_subnet, subnet_info, validate_bulk,
+                       validate_ipv4, validate_ipv6)
 except ImportError:
-    from core import classify_ipv4, subnet_info, validate_ipv4, validate_ipv6
+    from core import (address_formats, classify_ipv4, classify_ipv6, ip_range,
+                      same_network, split_subnet, subnet_info, validate_bulk,
+                      validate_ipv4, validate_ipv6)
 
 
 @pytest.mark.parametrize("address", [
@@ -19,10 +23,10 @@ def test_ipv4_valid_and_crosscheck(address):
 
 
 @pytest.mark.parametrize("address,error", [
-    ("256.1.1.1", "octet >255"), ("1.1.1", "wrong octet count"),
-    ("01.1.1.1", "leading zero"), ("1..1.1", "empty octet"),
-    ("1.a.1.1", "non-digit octet"), (" 1.1.1.1", "whitespace is not allowed"),
-    ("1.1.1.1.", "wrong octet count"),
+    ("256.1.1.1", "octet 1 is 256, must be 0-255"), ("1.1.1", "expected 4 octets, got 3"),
+    ("01.1.1.1", "octet 1 has a leading zero"), ("1..1.1", "octet 2 is empty"),
+    ("1.a.1.1", "octet 2 must contain only digits"), (" 1.1.1.1", "whitespace is not allowed"),
+    ("1.1.1.1.", "expected 4 octets, got 5"),
 ])
 def test_ipv4_invalid(address, error):
     assert validate_ipv4(address) == {"valid": False, "error": error}
@@ -44,6 +48,7 @@ def test_ipv6_valid_and_crosscheck(address):
     "1::2::3", "1:2:3", "1:2:3:4:5:6:7:8:9", "12345::1",
     "gggg::1", ":1:2:3:4:5:6:7:8", "1:2:3:4:5:6:7:",
     "::ffff:256.0.0.1", "1:2:3:4:5:192.0.2.1",
+    ":::", "1:::2", "1::2:", ":1::2",
 ])
 def test_ipv6_invalid(address):
     assert not validate_ipv6(address)["valid"]
@@ -57,6 +62,8 @@ def test_ipv6_invalid(address):
     ("169.254.0.1", ("B", "link-local")), ("224.0.0.1", ("D", "multicast")),
     ("240.0.0.1", ("E", "reserved")), ("0.1.2.3", ("A", "reserved")),
     ("8.8.8.8", ("A", "public")),
+    ("100.64.0.1", ("A", "shared")), ("192.0.2.1", ("C", "documentation")),
+    ("198.51.100.5", ("C", "documentation")), ("203.0.113.2", ("C", "documentation")),
 ])
 def test_classification(address, expected):
     result = classify_ipv4(address)
@@ -89,3 +96,57 @@ def test_subnet_host_edge_cases():
 def test_subnet_rejects_bad_input(ip, mask):
     with pytest.raises(ValueError):
         subnet_info(ip, mask)
+
+
+@pytest.mark.parametrize("address,category", [
+    ("::", "unspecified"), ("::1", "loopback"), ("fe80::1234", "link-local"),
+    ("febf::1", "link-local"), ("fc00::1", "unique-local"),
+    ("fd12::1", "unique-local"), ("ff02::1", "multicast"),
+    ("2001:db8::1", "global"),
+])
+def test_classify_ipv6(address, category):
+    assert classify_ipv6(address)["category"] == category
+    ipaddress.IPv6Address(address)
+
+
+def test_same_network_crosscheck():
+    pairs = [("192.168.1.1", "192.168.1.200", "/24"), ("10.0.0.1", "10.0.1.1", "/24")]
+    for first, second, prefix in pairs:
+        expected = ipaddress.IPv4Network((first, int(prefix[1:])), strict=False) == ipaddress.IPv4Network((second, int(prefix[1:])), strict=False)
+        assert same_network(first, second, prefix) is expected
+
+
+def test_split_subnet_crosscheck():
+    result = split_subnet("192.168.1.0/24", 4)
+    expected = list(ipaddress.ip_network("192.168.1.0/24").subnets(prefixlen_diff=2))
+    assert [row["cidr"] for row in result] == [str(net) for net in expected]
+
+
+def test_validate_bulk_crosscheck():
+    addresses = ["192.0.2.1", "::1", "256.0.0.1", "1::2::3"]
+    result = validate_bulk(addresses)
+    expected = [True, True, False, False]
+    assert [row["valid"] for row in result["results"]] == expected
+    assert (result["valid_count"], result["invalid_count"]) == (2, 2)
+    for address, is_valid in zip(addresses, expected):
+        try:
+            ipaddress.ip_address(address)
+            assert is_valid
+        except ValueError:
+            assert not is_valid
+
+
+def test_ip_range_crosscheck_and_cap():
+    result = ip_range("192.0.2.1", "192.0.2.4")
+    assert result == [str(ipaddress.ip_address(int(ipaddress.ip_address("192.0.2.1")) + i)) for i in range(4)]
+    with pytest.raises(ValueError):
+        ip_range("0.0.0.0", "0.0.4.0")
+
+
+@pytest.mark.parametrize("address", ["192.0.2.1", "2001:db8::1"])
+def test_address_formats_crosscheck(address):
+    expected = int(ipaddress.ip_address(address))
+    result = address_formats(address)
+    assert result["integer"] == expected
+    assert int(result["hex"], 16) == expected
+    assert int(result["binary"].replace(".", ""), 2) == expected
