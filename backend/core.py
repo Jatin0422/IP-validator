@@ -162,9 +162,9 @@ def classify_ipv6(s):
 def address_formats(s):
     if ":" in s:
         value, width = _ipv6_int(s), 128
-        return {"binary": f"{value:0{width}b}", "hex": f"{value:0{width // 4}x}", "integer": value}
+        return {"binary": f"{value:0{width}b}", "hex": f"{value:0{width // 4}x}", "integer": str(value)}
     value, width = _ipv4_int(s), 32
-    return {"binary": _binary(value), "hex": f"{value:0{width // 4}x}", "integer": value}
+    return {"binary": _binary(value), "hex": f"{value:0{width // 4}x}", "integer": str(value)}
 
 
 def subnet_info(ip, prefix_or_mask):

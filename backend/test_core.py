@@ -168,7 +168,7 @@ def test_ip_range_crosscheck_and_cap():
 def test_address_formats_crosscheck(address):
     expected = int(ipaddress.ip_address(address))
     result = address_formats(address)
-    assert result["integer"] == expected
+    assert result["integer"] == str(expected)
     assert int(result["hex"], 16) == expected
     assert int(result["binary"].replace(".", ""), 2) == expected
 
