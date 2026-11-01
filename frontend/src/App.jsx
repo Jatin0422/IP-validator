@@ -5,7 +5,7 @@ const tabs = ['Validate', 'Subnet'];
 
 export default function App() {
   const [tab, setTab] = useState(tabs[0]);
-  const [values, setValues] = useState({ addresses: '', ip: '', mask: '/24', compareIp: '', splitCount: '' });
+  const [values, setValues] = useState({ address: '', ip: '', mask: '/24', compareIp: '', splitCount: '' });
   const [compareEnabled, setCompareEnabled] = useState(false);
   const [splitEnabled, setSplitEnabled] = useState(false);
   const [result, setResult] = useState(null);
@@ -38,14 +38,7 @@ export default function App() {
     setResult(null);
     try {
       if (tab === 'Validate') {
-        const addresses = values.addresses.split(/\r?\n/).map(address => address.trim()).filter(Boolean);
-        if (addresses.length === 1) {
-          setResult({ mode: 'single', data: await post('validate', { ip: addresses[0] }) });
-        } else if (addresses.length > 1) {
-          setResult({ mode: 'bulk', data: await post('validate-bulk', { list: addresses }) });
-        } else {
-          throw new Error('Enter at least one IP address.');
-        }
+        setResult({ mode: 'single', data: await post('validate', { ip: values.address.trim() }) });
       } else {
         const subnet = await post('subnet', { ip: values.ip, mask: values.mask });
         let comparison = null;
@@ -76,8 +69,8 @@ export default function App() {
     return <button className="copy-button" type="button" onClick={() => copy(text)} aria-label={`Copy ${text}`}>{label}</button>;
   }
 
-  function valueWithCopy(value) {
-    return <span className="value-copy"><span className="mono-value">{String(value ?? '—')}</span>{copyControl(value)}</span>;
+  function valueText(value) {
+    return <span className="mono-value">{String(value ?? '—')}</span>;
   }
 
   function bitRow(binary, prefix, label) {
@@ -90,25 +83,19 @@ export default function App() {
 
   function validationDetail(data) {
     return <>
-      <div className="validation-stamp"><strong className={data.valid ? 'valid-stamp' : 'invalid-stamp'}>{data.valid ? 'VALID' : 'INVALID'}</strong>{copyControl(data.valid ? 'VALID' : 'INVALID')}{data.error && valueWithCopy(data.error)}</div>
-      {Object.entries(data).filter(([key]) => !['valid', 'error'].includes(key)).map(([key, value]) => <div className="spec-row" key={key}><span className="spec-label">{key.replaceAll('_', ' ')}</span><span className="spec-value">{typeof value === 'object' && value !== null ? valueWithCopy(Object.entries(value).map(([k, v]) => `${k}: ${v}`).join(' / ')) : valueWithCopy(value)}</span></div>)}
-    </>;
-  }
-
-  function bulkDetail(data) {
-    return <>
-      <p className="bulk-summary"><strong>{data.valid_count} VALID</strong><span>/</span><strong className={data.invalid_count ? 'invalid-text' : ''}>{data.invalid_count} INVALID</strong></p>
-      <div className="list-scroll"><table className="data-table"><thead><tr><th>STATUS</th><th>ADDRESS</th><th>REASON</th></tr></thead><tbody>{(data.results || []).map((item, index) => <tr key={`${item.ip}-${index}`}><td><span className={item.valid ? 'valid-mark' : 'invalid-mark'}>{item.valid ? 'OK' : 'NO'}</span></td><td><span className="value-copy"><span className="mono-value">{item.ip}</span>{copyControl(item.ip)}</span></td><td className={item.error ? 'failure-reason' : ''}>{item.error || '—'}</td></tr>)}</tbody></table></div>
+      <div className="validation-stamp"><strong className={data.valid ? 'valid-stamp' : 'invalid-stamp'}>{data.valid ? 'VALID' : 'INVALID'}</strong>{data.error && valueText(data.error)}</div>
+      {Object.entries(data).filter(([key]) => !['valid', 'error'].includes(key)).map(([key, value]) => <div className="spec-row" key={key}><span className="spec-label">{key.replaceAll('_', ' ')}</span><span className="spec-value">{typeof value === 'object' && value !== null ? valueText(Object.entries(value).map(([k, v]) => `${k}: ${v}`).join(' / ')) : valueText(value)}</span></div>)}
     </>;
   }
 
   function subnetDetail(data) {
     const subnet = data.subnet;
     return <>
-      {Object.entries(subnet).map(([key, value]) => <div className="spec-row" key={key}><span className="spec-label">{key.replaceAll('_', ' ')}</span><span className="spec-value">{valueWithCopy(value)}</span></div>)}
-      <section className="bit-visualizer"><div className="section-kicker">BIT VISUALIZER <span>IPv4 · {subnet.prefix} bit prefix</span></div>{bitRow(subnet.ip_binary, subnet.prefix, 'IP ADDRESS')}<div className="bit-legend"><span><i className="legend-network" /> NETWORK</span><span><i className="legend-host" /> HOST</span></div><div className="mask-row"><span className="spec-label">MASK BINARY</span>{valueWithCopy(subnet.mask_binary)}</div></section>
+      <div className="spec-row role-row"><span className="spec-label">ROLE</span><span className="spec-value role-value"><strong className={`role-tag ${subnet.role === 'network address' || subnet.role === 'broadcast address' ? 'role-reserved' : 'role-usable'}`}>{subnet.role}</strong>{(subnet.role === 'network address' || subnet.role === 'broadcast address') && <span className="role-note">cannot be assigned to a device</span>}</span></div>
+      {Object.entries(subnet).filter(([key]) => key !== 'role').map(([key, value]) => <div className="spec-row" key={key}><span className="spec-label">{key.replaceAll('_', ' ')}</span><span className="spec-value">{valueText(value)}</span></div>)}
+      <section className="bit-visualizer"><div className="section-kicker">BIT VISUALIZER <span>IPv4 · {subnet.prefix} bit prefix</span></div>{bitRow(subnet.ip_binary, subnet.prefix, 'IP ADDRESS')}<div className="bit-legend"><span><i className="legend-network" /> NETWORK</span><span><i className="legend-host" /> HOST</span></div><div className="mask-row"><span className="spec-label">MASK BINARY</span>{valueText(subnet.mask_binary)}</div></section>
       {data.comparison && <section className="optional-result"><div className="section-kicker">NETWORK COMPARISON</div><div className="verdict"><span className="spec-label">SAME NETWORK</span><strong>{data.comparison.same_network ? 'YES · SAME NETWORK' : 'NO · DIFFERENT NETWORK'}</strong></div>{bitRow(subnet.ip_binary, subnet.prefix, values.ip)}{bitRow(ipv4Binary(values.compareIp), subnet.prefix, values.compareIp)}<div className="bit-legend"><span><i className="legend-network" /> NETWORK</span><span><i className="legend-host" /> HOST</span></div></section>}
-      {data.split && <section className="optional-result"><div className="list-heading"><span className="section-kicker">SPLIT SUBNETS</span>{copyControl((data.split.subnets || []).map(item => item.cidr).join('\n'), 'COPY ALL')}</div><div className="list-scroll"><table className="data-table"><thead><tr><th>NO.</th><th>NETWORK</th><th>PREFIX</th></tr></thead><tbody>{(data.split.subnets || []).map((item, index) => <tr key={item.cidr}><td>{String(index + 1).padStart(2, '0')}</td><td>{valueWithCopy(item.network)}</td><td>{valueWithCopy(`/${item.prefix}`)}</td></tr>)}</tbody></table></div></section>}
+      {data.split && <section className="optional-result"><div className="list-heading"><span className="section-kicker">SPLIT SUBNETS</span>{copyControl((data.split.subnets || []).map(item => item.cidr).join('\n'), 'COPY ALL')}</div><div className="list-scroll"><table className="data-table"><thead><tr><th>NO.</th><th>NETWORK</th><th>PREFIX</th></tr></thead><tbody>{(data.split.subnets || []).map((item, index) => <tr key={item.cidr}><td>{String(index + 1).padStart(2, '0')}</td><td>{valueText(item.network)}</td><td>{valueText(`/${item.prefix}`)}</td></tr>)}</tbody></table></div></section>}
     </>;
   }
 
@@ -119,7 +106,7 @@ export default function App() {
   }
 
   function fillExample(example) {
-    if (tab === 'Validate') set('addresses', example.split('/')[0]);
+    if (tab === 'Validate') set('address', example.split('/')[0]);
     else if (example.includes('/')) {
       const [ip, mask] = example.split('/');
       set('ip', ip);
@@ -133,7 +120,7 @@ export default function App() {
       <section className="panel"><div className="panel-title"><span className="section-kicker">{String(tabs.indexOf(tab) + 1).padStart(2, '0')} / INPUT</span><h1>{tab}</h1></div>
         <form onSubmit={submit}>
           <div className="form-fields">
-            {tab === 'Validate' ? <label className="field field-wide"><span className="micro-label">IP address · one per line for bulk validation</span><textarea required rows="4" value={values.addresses} onChange={e => set('addresses', e.target.value)} placeholder={'192.168.1.1\n2001:db8::1'} /></label> : <>
+            {tab === 'Validate' ? <label className="field field-wide"><span className="micro-label">IP address</span><input required value={values.address} onChange={e => set('address', e.target.value)} placeholder="192.168.1.1 or 2001:db8::1" /></label> : <>
               <label className="field"><span className="micro-label">IPv4 address</span><input required value={values.ip} onChange={e => set('ip', e.target.value)} placeholder="192.168.1.1" /></label>
               <label className="field"><span className="micro-label">Prefix or subnet mask</span><input required value={values.mask} onChange={e => set('mask', e.target.value)} placeholder="/24 or 255.255.255.0" /></label>
               <label className="option-toggle"><input type="checkbox" checked={compareEnabled} onChange={e => setCompareEnabled(e.target.checked)} /><span>COMPARE WITH ANOTHER IP</span></label>
@@ -145,7 +132,7 @@ export default function App() {
           <button className="submit" disabled={busy}>{busy ? 'PROCESSING...' : 'RUN CHECK'}</button>
         </form>
         {error && <p className="error" role="alert">{error}</p>}
-        {result ? <section className="results" aria-live="polite"><div className="section-kicker result-heading">OUTPUT / RESULT</div>{result.mode === 'single' ? validationDetail(result.data) : result.mode === 'bulk' ? bulkDetail(result.data) : subnetDetail(result)}</section> : !error && <section className="empty-state"><span className="section-kicker">QUICK INPUT</span><div className="examples">{(tab === 'Validate' ? ['192.168.1.1', '::1', '10.0.0.0/8'] : ['192.168.1.1', '10.0.0.0/8']).map(example => <button type="button" key={example} onClick={() => fillExample(example)}>{example}</button>)}</div></section>}
+        {result ? <section className="results" aria-live="polite"><div className="section-kicker result-heading">OUTPUT / RESULT</div>{result.mode === 'single' ? validationDetail(result.data) : subnetDetail(result)}</section> : !error && <section className="empty-state"><span className="section-kicker">QUICK INPUT</span><div className="examples">{(tab === 'Validate' ? ['192.168.1.1', '::1', '10.0.0.0/8'] : ['192.168.1.1', '10.0.0.0/8']).map(example => <button type="button" key={example} onClick={() => fillExample(example)}>{example}</button>)}</div></section>}
       </section><footer className="page-foot"><span>IPLens / NETWORK UTILITIES</span><span>MANUAL INPUT · LOCAL API</span></footer>
     </main>
   </div>;

@@ -1,15 +1,13 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Any
-
 try:
     from .core import (address_formats, classify_ipv4, classify_ipv6, ip_range,
-                       same_network, split_subnet, subnet_info, validate_bulk,
+                       same_network, split_subnet, subnet_info,
                        validate_ipv4, validate_ipv6)
 except ImportError:  # supports `uvicorn main:app` from backend/
     from core import (address_formats, classify_ipv4, classify_ipv6, ip_range,
-                      same_network, split_subnet, subnet_info, validate_bulk,
+                      same_network, split_subnet, subnet_info,
                       validate_ipv4, validate_ipv6)
 
 app = FastAPI(title="IPLens")
@@ -37,10 +35,6 @@ class SameNetworkRequest(BaseModel):
 class SplitRequest(BaseModel):
     network: str
     n: int
-
-
-class BulkRequest(BaseModel):
-    list: list[Any]
 
 
 class RangeRequest(BaseModel):
@@ -86,14 +80,6 @@ def check_same_network(request: SameNetworkRequest):
 def split(request: SplitRequest):
     try:
         return {"subnets": split_subnet(request.network, request.n)}
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@app.post("/api/validate-bulk")
-def bulk(request: BulkRequest):
-    try:
-        return validate_bulk(request.list)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

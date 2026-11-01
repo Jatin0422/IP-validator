@@ -195,12 +195,20 @@ def subnet_info(ip, prefix_or_mask):
     if prefix == 32:
         first_host = last_host = address
         usable = 1
+        role = "single host (/32)"
     elif prefix == 31:
         first_host, last_host, usable = network, broadcast, 2
+        role = "usable host (point-to-point /31)"
     else:
         first_host, last_host, usable = network + 1, broadcast - 1, max(total - 2, 0)
+        if address == network:
+            role = "network address"
+        elif address == broadcast:
+            role = "broadcast address"
+        else:
+            role = "usable host"
     return {
-        "ip": ip, "prefix": prefix, "subnet_mask": _dotted(mask),
+        "role": role, "ip": ip, "prefix": prefix, "subnet_mask": _dotted(mask),
         "wildcard": _dotted(wildcard), "network": _dotted(network),
         "broadcast": _dotted(broadcast), "first_host": _dotted(first_host),
         "last_host": _dotted(last_host), "total_addresses": total,
@@ -231,17 +239,6 @@ def split_subnet(network, n):
     block = 1 << (32 - new_prefix)
     return [{"network": _dotted(base + i * block), "prefix": new_prefix,
              "cidr": f"{_dotted(base + i * block)}/{new_prefix}"} for i in range(n)]
-
-
-def validate_bulk(addresses):
-    if not isinstance(addresses, list):
-        raise ValueError("addresses must be a list")
-    results = []
-    for address in addresses:
-        result = validate_ipv6(address) if isinstance(address, str) and ":" in address else validate_ipv4(address) if isinstance(address, str) else {"valid": False, "error": "address must be a string"}
-        results.append({"ip": address, **result})
-    valid_count = sum(item["valid"] for item in results)
-    return {"valid_count": valid_count, "invalid_count": len(results) - valid_count, "results": results}
 
 
 def ip_range(start, end):

@@ -1,4 +1,4 @@
-# IPLens
+﻿# IPLens
 
 IPLens provides hand-written IPv4/IPv6 validation, classification, and subnet utilities through a FastAPI backend and a small React interface.
 
@@ -8,7 +8,6 @@ IPLens provides hand-written IPv4/IPv6 validation, classification, and subnet ut
 - **Subnet Calculator:** calculates network, broadcast, host range, mask, wildcard, and address counts from a prefix or mask.
 - **Same Network:** checks whether two IPv4 addresses share a subnet.
 - **Split Subnet:** divides a CIDR network into a power-of-two number of subnets (up to 1024).
-- **Bulk Validate:** validates a list of IPv4 and IPv6 addresses and reports per-address errors.
 - **IP Range:** lists the inclusive IPv4 range, capped at 1024 addresses.
 
 ## Run
@@ -45,9 +44,8 @@ python -m pytest backend\test_core.py -q
 
 All endpoints accept JSON via `POST`:
 
-- `/api/validate` — `{ "ip": "..." }`
-- `/api/subnet` — `{ "ip": "...", "mask": "/24" }`
-- `/api/same-network` — `{ "ip1": "...", "ip2": "...", "mask": "/24" }`
-- `/api/split-subnet` — `{ "network": "192.168.1.0/24", "n": 4 }`
-- `/api/validate-bulk` — `{ "list": ["192.168.1.1", "::1"] }`
-- `/api/ip-range` — `{ "start": "192.168.1.1", "end": "192.168.1.10" }`
+- `/api/validate` â€” `{ "ip": "..." }`
+- `/api/subnet` â€” `{ "ip": "...", "mask": "/24" }`
+- `/api/same-network` â€” `{ "ip1": "...", "ip2": "...", "mask": "/24" }`
+- `/api/split-subnet` â€” `{ "network": "192.168.1.0/24", "n": 4 }`
+- `/api/ip-range` â€” `{ "start": "192.168.1.1", "end": "192.168.1.10" }`

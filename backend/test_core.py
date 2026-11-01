@@ -4,11 +4,11 @@ import pytest
 
 try:
     from .core import (address_formats, classify_ipv4, classify_ipv6, ip_range,
-                       same_network, split_subnet, subnet_info, validate_bulk,
+                       same_network, split_subnet, subnet_info,
                        validate_ipv4, validate_ipv6)
 except ImportError:
     from core import (address_formats, classify_ipv4, classify_ipv6, ip_range,
-                      same_network, split_subnet, subnet_info, validate_bulk,
+                      same_network, split_subnet, subnet_info,
                       validate_ipv4, validate_ipv6)
 
 
@@ -92,6 +92,38 @@ def test_subnet_host_edge_cases():
     assert subnet_info("192.0.2.1", "/32")["usable_hosts"] == 1
 
 
+@pytest.mark.parametrize("address,mask,expected_role", [
+    ("192.168.1.128", "/26", "network address"),
+    ("192.168.1.191", "/26", "broadcast address"),
+    ("192.168.1.129", "/26", "usable host"),
+    ("192.168.1.190", "/26", "usable host"),
+    ("192.168.1.128", "255.255.255.192", "network address"),
+    ("192.168.1.191", "255.255.255.192", "broadcast address"),
+    ("192.168.1.129", "255.255.255.192", "usable host"),
+    ("192.168.1.190", "255.255.255.192", "usable host"),
+    ("192.168.1.0", "/24", "network address"),
+    ("192.168.1.255", "/24", "broadcast address"),
+    ("0.0.0.0", "/0", "network address"),
+    ("255.255.255.255", "/0", "broadcast address"),
+    ("192.0.2.0", "/31", "usable host (point-to-point /31)"),
+    ("192.0.2.1", "/31", "usable host (point-to-point /31)"),
+    ("192.0.2.1", "/32", "single host (/32)"),
+])
+def test_subnet_role_crosscheck(address, mask, expected_role):
+    result = subnet_info(address, mask)
+    network = ipaddress.IPv4Network((address, int(mask[1:]) if mask.startswith("/") else mask), strict=False)
+    assert result["role"] == expected_role
+    assert result["network"] == str(network.network_address)
+    assert result["broadcast"] == str(network.broadcast_address)
+    if mask not in ("/31", "/32"):
+        if result["role"] == "network address":
+            assert ipaddress.ip_address(address) == network.network_address
+        elif result["role"] == "broadcast address":
+            assert ipaddress.ip_address(address) == network.broadcast_address
+        else:
+            assert ipaddress.ip_address(address) not in (network.network_address, network.broadcast_address)
+
+
 @pytest.mark.parametrize("ip,mask", [("300.1.1.1", "/24"), ("1.1.1.1", "255.0.255.0"), ("1.1.1.1", "/33"), ("1.1.1.1", "abc")])
 def test_subnet_rejects_bad_input(ip, mask):
     with pytest.raises(ValueError):
@@ -120,20 +152,6 @@ def test_split_subnet_crosscheck():
     result = split_subnet("192.168.1.0/24", 4)
     expected = list(ipaddress.ip_network("192.168.1.0/24").subnets(prefixlen_diff=2))
     assert [row["cidr"] for row in result] == [str(net) for net in expected]
-
-
-def test_validate_bulk_crosscheck():
-    addresses = ["192.0.2.1", "::1", "256.0.0.1", "1::2::3"]
-    result = validate_bulk(addresses)
-    expected = [True, True, False, False]
-    assert [row["valid"] for row in result["results"]] == expected
-    assert (result["valid_count"], result["invalid_count"]) == (2, 2)
-    for address, is_valid in zip(addresses, expected):
-        try:
-            ipaddress.ip_address(address)
-            assert is_valid
-        except ValueError:
-            assert not is_valid
 
 
 def test_ip_range_crosscheck_and_cap():
